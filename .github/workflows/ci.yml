@@ -30,8 +30,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            source "$NVM_DIR/nvm.sh"
+            export PATH="$HOME/.nvm/versions/node/v22.23.0/bin:$PATH"
             cd ~/advanced-issue
             git pull origin main
             npm ci --omit=dev
