@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>問い合わせ詳細</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>問い合わせ管理</h1>
+    <a href="index.html">← 一覧に戻る</a>
+  </header>
+
+  <main>
+    <div id="msg"></div>
+
+    <!-- 詳細カード -->
+    <div class="card" id="detailCard">
+      <p style="color:#999">読み込み中...</p>
+    </div>
+
+    <!-- ステータス・担当者変更 -->
+    <div class="card">
+      <h3 style="margin-bottom:12px">ステータス・担当者の変更</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div class="form-group" style="margin:0;flex:1;min-width:160px">
+          <label>ステータス</label>
+          <select id="statusSelect">
+            <option value="open">未対応</option>
+            <option value="in_progress">対応中</option>
+            <option value="closed">完了</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0;flex:1;min-width:160px">
+          <label>担当者</label>
+          <select id="assigneeSelect">
+            <option value="">未割当</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="updateInquiry()">更新する</button>
+      </div>
+    </div>
+
+    <!-- 対応履歴 -->
+    <div class="card">
+      <h3 style="margin-bottom:12px">対応履歴</h3>
+      <div id="comments"></div>
+
+      <hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0">
+      <h4 style="margin-bottom:10px">コメント追加</h4>
+      <form id="commentForm">
+        <div class="form-group">
+          <label>投稿者名 <span style="color:red">*</span></label>
+          <input type="text" id="author" maxlength="100" placeholder="名前を入力">
+        </div>
+        <div class="form-group">
+          <label>コメント <span style="color:red">*</span></label>
+          <textarea id="commentBody" placeholder="対応内容や追記事項を入力"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">送信</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    const statusLabel = { open: '未対応', in_progress: '対応中', closed: '完了' };
+    const params = new URLSearchParams(location.search);
+    const id = parseInt(params.get('id'), 10);
+
+    if (!id) { location.href = 'index.html'; }
+
+    function showMsg(text, type = 'error') {
+      const el = document.getElementById('msg');
+      el.innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+      setTimeout(() => { el.innerHTML = ''; }, 4000);
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    async function loadDetail() {
+      try {
+        const res = await fetch(`/api/inquiries/${id}`);
+        if (res.status === 404) { showMsg('問い合わせが見つかりません'); return; }
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+
+        document.title = `#${d.id} ${d.subject}`;
+        document.getElementById('detailCard').innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2 style="font-size:1.1rem">#${d.id}　${escHtml(d.subject)}</h2>
+            <span class="badge badge-${d.status}">${statusLabel[d.status]}</span>
+          </div>
+          <p style="white-space:pre-wrap;margin-bottom:12px">${escHtml(d.body)}</p>
+          <div style="color:#666;font-size:0.85rem">
+            担当者：${escHtml(d.assignee_name || '未割当')}
+            登録日：${new Date(d.created_at).toLocaleString('ja-JP')}
+          </div>
+        `;
+
+        // 現在値をセレクトに反映
+        document.getElementById('statusSelect').value = d.status;
+        if (d.assignee_id) {
+          document.getElementById('assigneeSelect').value = d.assignee_id;
+        }
+      } catch {
+        showMsg('詳細の取得に失敗しました');
+      }
+    }
+
+    async function loadAssignees() {
+      try {
+        const res = await fetch('/api/assignees');
+        if (!res.ok) return;
+        const data = await res.json();
+        const sel = document.getElementById('assigneeSelect');
+        data.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = a.name;
+          sel.appendChild(opt);
+        });
+      } catch { /* 無視 */ }
+    }
+
+    async function loadComments() {
+      try {
+        const res = await fetch(`/api/inquiries/${id}/comments`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const el = document.getElementById('comments');
+        if (data.length === 0) {
+          el.innerHTML = '<p style="color:#999;font-size:0.9rem">まだコメントはありません</p>';
+          return;
+        }
+        el.innerHTML = data.map(c => `
+          <div style="padding:10px 0;border-bottom:1px solid #eee">
+            <div style="font-weight:bold;margin-bottom:4px">${escHtml(c.author)}
+              <span style="font-weight:normal;color:#999;font-size:0.8rem;margin-left:8px">
+                ${new Date(c.created_at).toLocaleString('ja-JP')}
+              </span>
+            </div>
+            <p style="white-space:pre-wrap">${escHtml(c.body)}</p>
+          </div>
+        `).join('');
+      } catch {
+        showMsg('コメントの取得に失敗しました');
+      }
+    }
+
+    async function updateInquiry() {
+      const status = document.getElementById('statusSelect').value;
+      const assigneeId = document.getElementById('assigneeSelect').value;
+      const payload = { status, assignee_id: assigneeId ? parseInt(assigneeId, 10) : null };
+
+      try {
+        const res = await fetch(`/api/inquiries/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) { showMsg(data.error || '更新に失敗しました'); return; }
+        showMsg('更新しました', 'success');
+        loadDetail();
+      } catch {
+        showMsg('サーバーへの接続に失敗しました');
+      }
+    }
+
+    document.getElementById('commentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const author = document.getElementById('author').value.trim();
+      const body   = document.getElementById('commentBody').value.trim();
+      if (!author) { showMsg('投稿者名を入力してください'); return; }
+      if (!body)   { showMsg('コメントを入力してください'); return; }
+
+      try {
+        const res = await fetch(`/api/inquiries/${id}/comments`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ author, body }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showMsg(data.error || 'コメントの送信に失敗しました'); return; }
+        document.getElementById('author').value = '';
+        document.getElementById('commentBody').value = '';
+        showMsg('コメントを送信しました', 'success');
+        loadComments();
+      } catch {
+        showMsg('サーバーへの接続に失敗しました');
+      }
+    });
+
+    loadAssignees();
+    loadDetail();
+    loadComments();
+  </script>
+</body>
+</html>

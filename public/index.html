@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>問い合わせ管理</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>問い合わせ管理</h1>
+    <a href="form.html">＋ 新規登録</a>
+  </header>
+
+  <main>
+    <div id="msg"></div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <div>
+          <label>ステータス</label>
+          <select id="filterStatus">
+            <option value="">すべて</option>
+            <option value="open">未対応</option>
+            <option value="in_progress">対応中</option>
+            <option value="closed">完了</option>
+          </select>
+        </div>
+        <div>
+          <label>担当者</label>
+          <select id="filterAssignee">
+            <option value="">すべて</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="loadInquiries()">絞り込み</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>件名</th>
+            <th>ステータス</th>
+            <th>担当者</th>
+            <th>登録日</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script>
+    const statusLabel = { open: '未対応', in_progress: '対応中', closed: '完了' };
+
+    function showMsg(text, type = 'error') {
+      const el = document.getElementById('msg');
+      el.innerHTML = `<div class="msg msg-${type}">${text}</div>`;
+      setTimeout(() => { el.innerHTML = ''; }, 4000);
+    }
+
+    async function loadAssignees() {
+      try {
+        const res = await fetch('/api/assignees');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        const sel = document.getElementById('filterAssignee');
+        data.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = a.name;
+          sel.appendChild(opt);
+        });
+      } catch {
+        // 担当者の読み込み失敗は無視
+      }
+    }
+
+    async function loadInquiries() {
+      const status = document.getElementById('filterStatus').value;
+      const assigneeId = document.getElementById('filterAssignee').value;
+      const params = new URLSearchParams();
+      if (status) params.set('status', status);
+      if (assigneeId) params.set('assignee_id', assigneeId);
+
+      try {
+        const res = await fetch('/api/inquiries?' + params.toString());
+        if (!res.ok) throw new Error('取得失敗');
+        const data = await res.json();
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999">データがありません</td></tr>';
+          return;
+        }
+
+        data.forEach(item => {
+          const date = new Date(item.created_at).toLocaleDateString('ja-JP');
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${item.id}</td>
+            <td><a class="row-link" href="detail.html?id=${item.id}">${escHtml(item.subject)}</a></td>
+            <td><span class="badge badge-${item.status}">${statusLabel[item.status] || item.status}</span></td>
+            <td>${escHtml(item.assignee_name || '未割当')}</td>
+            <td>${date}</td>
+            <td>
+              <button class="btn btn-danger" onclick="deleteInquiry(${item.id})">削除</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        showMsg('一覧の取得に失敗しました');
+      }
+    }
+
+    async function deleteInquiry(id) {
+      if (!confirm('削除しますか？')) return;
+      try {
+        const res = await fetch(`/api/inquiries/${id}`, { method: 'DELETE' });
+        if (res.status === 404) { showMsg('対象が見つかりません'); return; }
+        if (!res.ok) throw new Error();
+        showMsg('削除しました', 'success');
+        loadInquiries();
+      } catch {
+        showMsg('削除に失敗しました');
+      }
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    loadAssignees();
+    loadInquiries();
+  </script>
+</body>
+</html>
