@@ -19,3 +19,19 @@
   - JOINクエリの外部キー不整合（問い合わせ削除時のコメント孤立）
   - フロントのfetch後に一覧を自動更新し忘れる
   - テストモックでJOIN結果の形式が実装と食い違う
+
+### 課題C-後半：追加機能実装
+
+- Agent Teamsへの依頼内容：
+  - Backend Agent：GET /api/inquiries/summary 追加・PATCH の自動ステータス遷移ロジック実装
+  - Frontend Agent：index.html 上部にステータス集計ダッシュボード追加
+  - Test Agent：summary エンドポイントと自動遷移ロジックのテスト追加（+10件）
+  - Review Agent：SQLインジェクション・XSS・エラーハンドリングのレビュー
+- 各Agentの出力で気になった点：
+  - Backend Agent：`/summary` ルートを `/:id` より前に配置する必要があった（Expressのルート順序）
+  - Frontend Agent：サーバーエラー時はダッシュボードを非表示にするgraceful degradation を実装
+- 統合時に自分で修正した箇所：
+  - 自動遷移ロジックで `effectiveStatus` を導入し、明示的なstatusとauto遷移が競合しないよう整理
+- 期待と違った箇所：
+  - 特になし。設計書でルート順序とモック形式を事前に洗い出していたため統合がスムーズだった
+- テスト結果：34件グリーン、カバレッジ 82.41%

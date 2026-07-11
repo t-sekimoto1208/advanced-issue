@@ -104,3 +104,22 @@ tr:hover { background: #fafafa; }
 
 a.row-link { text-decoration: none; color: #2c5f8e; }
 a.row-link:hover { text-decoration: underline; }
+
+/* 集計ダッシュボード */
+.summary-box {
+  flex: 1;
+  min-width: 100px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  text-align: center;
+}
+#sum-open        { border-color: #c62828; }
+#sum-in_progress { border-color: #f57f17; }
+#sum-closed      { border-color: #2e7d32; }
+
+.summary-label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 4px; }
+.summary-count { display: block; font-size: 1.6rem; font-weight: bold; }
+#cnt-open        { color: #c62828; }
+#cnt-in_progress { color: #f57f17; }
+#cnt-closed      { color: #2e7d32; }

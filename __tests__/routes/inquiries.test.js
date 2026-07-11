@@ -236,3 +236,60 @@ describe('POST /api/inquiries/:id/comments', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// --- GET /api/inquiries/summary ---
+describe('GET /api/inquiries/summary', () => {
+  test('ステータス別件数を200で返す', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        { status: 'open', count: 3 },
+        { status: 'in_progress', count: 2 },
+        { status: 'closed', count: 5 },
+      ],
+    });
+
+    const res = await request(app).get('/api/inquiries/summary');
+    expect(res.status).toBe(200);
+    expect(res.body.open).toBe(3);
+    expect(res.body.in_progress).toBe(2);
+    expect(res.body.closed).toBe(5);
+    expect(res.body.total).toBe(10);
+  });
+
+  test('データなしでも各ステータス0を返す', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app).get('/api/inquiries/summary');
+    expect(res.status).toBe(200);
+    expect(res.body.open).toBe(0);
+    expect(res.body.total).toBe(0);
+  });
+});
+
+// --- PATCH /api/inquiries/:id（自動ステータス遷移） ---
+describe('PATCH /api/inquiries/:id 自動ステータス遷移', () => {
+  test('open の問い合わせに担当者をアサインすると自動で in_progress になる', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ status: 'open' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, status: 'in_progress', assignee_id: 1 }] });
+
+    const res = await request(app)
+      .patch('/api/inquiries/1')
+      .send({ assignee_id: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('in_progress');
+  });
+
+  test('in_progress の問い合わせに担当者をアサインしても自動遷移しない', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ status: 'in_progress' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, status: 'in_progress', assignee_id: 2 }] });
+
+    const res = await request(app)
+      .patch('/api/inquiries/1')
+      .send({ assignee_id: 2 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('in_progress');
+  });
+});

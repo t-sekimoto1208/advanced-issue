@@ -96,6 +96,24 @@ router.post('/', async (req, res) => {
   }
 });
 
+// 集計API：ステータス別件数
+router.get('/summary', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT status, COUNT(*)::int AS count
+      FROM inquiries
+      GROUP BY status
+    `);
+    const summary = { open: 0, in_progress: 0, closed: 0 };
+    result.rows.forEach(r => { summary[r.status] = r.count; });
+    summary.total = summary.open + summary.in_progress + summary.closed;
+    res.json(summary);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'サーバーエラー' });
+  }
+});
+
 // 問い合わせ詳細
 router.get('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -160,8 +178,19 @@ router.patch('/:id', async (req, res) => {
     const fields = [];
     const values = [];
 
-    if (status !== undefined) {
-      values.push(status);
+    // 担当者がアサインされ、かつステータスが open の場合は自動で in_progress へ遷移
+    let autoTransitionStatus = null;
+    if (assignee_id !== undefined && assignee_id !== null && assignee_id !== '') {
+      const aid = parseInt(assignee_id, 10);
+      if (!isNaN(aid) && aid > 0 && currentStatus === 'open' && status === undefined) {
+        autoTransitionStatus = 'in_progress';
+      }
+    }
+
+    const effectiveStatus = status !== undefined ? status : autoTransitionStatus;
+
+    if (effectiveStatus !== null && effectiveStatus !== undefined) {
+      values.push(effectiveStatus);
       fields.push(`status = $${values.length}`);
     }
     if (assignee_id !== undefined) {

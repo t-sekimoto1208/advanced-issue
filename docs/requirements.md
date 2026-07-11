@@ -9,7 +9,7 @@
 
 | 画面名 | ファイル | 主な操作 |
 |--------|----------|----------|
-| 問い合わせ一覧 | index.html | 一覧表示・ステータス/担当者でフィルタ・新規登録ボタン |
+| 問い合わせ一覧 | index.html | 一覧表示・ステータス/担当者でフィルタ・新規登録ボタン・ステータス集計ダッシュボード |
 | 問い合わせ登録フォーム | form.html | 件名・本文・担当者を入力して登録 |
 | 詳細・対応履歴 | detail.html | コメント追加・ステータス変更・担当者変更 |
 
@@ -24,6 +24,7 @@
 | DELETE | /api/inquiries/:id | 問い合わせ削除（コメントもカスケード削除） |
 | GET | /api/inquiries/:id/comments | 対応履歴一覧 |
 | POST | /api/inquiries/:id/comments | コメント追加 |
+| GET | /api/inquiries/summary | ステータス別集計（open/in_progress/closed/total） |
 | GET | /api/assignees | 担当者一覧 |
 | POST | /api/assignees | 担当者登録 |
 

@@ -14,6 +14,29 @@
   <main>
     <div id="msg"></div>
 
+    <!-- 集計ダッシュボード -->
+    <div class="card" id="summaryCard" style="display:none">
+      <h3 style="margin-bottom:12px;font-size:0.95rem;color:#555">ステータス集計</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="summary-box" id="sum-open">
+          <span class="summary-label">未対応</span>
+          <span class="summary-count" id="cnt-open">-</span>
+        </div>
+        <div class="summary-box" id="sum-in_progress">
+          <span class="summary-label">対応中</span>
+          <span class="summary-count" id="cnt-in_progress">-</span>
+        </div>
+        <div class="summary-box" id="sum-closed">
+          <span class="summary-label">完了</span>
+          <span class="summary-count" id="cnt-closed">-</span>
+        </div>
+        <div class="summary-box" style="border-color:#2c5f8e">
+          <span class="summary-label">合計</span>
+          <span class="summary-count" id="cnt-total" style="color:#2c5f8e">-</span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="filter-bar">
         <div>
@@ -136,8 +159,22 @@
         .replace(/"/g, '&quot;');
     }
 
+    async function loadSummary() {
+      try {
+        const res = await fetch('/api/inquiries/summary');
+        if (!res.ok) return;
+        const d = await res.json();
+        document.getElementById('cnt-open').textContent        = d.open;
+        document.getElementById('cnt-in_progress').textContent = d.in_progress;
+        document.getElementById('cnt-closed').textContent      = d.closed;
+        document.getElementById('cnt-total').textContent       = d.total;
+        document.getElementById('summaryCard').style.display   = '';
+      } catch { /* サマリ取得失敗は無視 */ }
+    }
+
     loadAssignees();
     loadInquiries();
+    loadSummary();
   </script>
 </body>
 </html>
